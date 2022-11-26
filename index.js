@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 // const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -40,13 +40,159 @@ const client = new MongoClient(uri, {
   });
 } */
 
+async function run() {
+  try {
+    const productsCollection = client
+      .db("resellProduct")
+      .collection("products");
+    const categoriesCollection = client
+      .db("resellProduct")
+      .collection("categories");
+    const bookingsCollection = client
+      .db("resellProduct")
+      .collection("bookings");
+    const usersCollection = client
+      .db("resellProduct")
+      .collection("users");
+
+    // get all categories API start
+    app.get("/categories", async (req, res) => {
+      const query = {};
+      const categories = await categoriesCollection.find(query).toArray();
+      res.send(categories);
+    });
+    // get all categories API end
+
+    // get single category product API start
+    app.get("/categories/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { category_id: id };
+      const result = await productsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // Bookings Create on database:
+    app.post("/bookings", async (req, res) => {
+      const bookings = req.body;
+      const result = await bookingsCollection.insertOne(bookings);
+      res.send(result);
+    });
+
+    // Get Bookings Data from database on table:
+    app.get("/bookings", async (req, res) => {
+      const email = req.query.email;
+      // const decodedEmail = req.decoded.email;
+
+      // if (email !== decodedEmail) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
+      // console.log(email)
+
+      const query = { email: email };
+      const bookings = await bookingsCollection.find(query).toArray();
+      res.send(bookings);
+    });
 
 
 
+    // as a buyer or as a seller sign up create:
+    app.post('/users', async(req , res) => {
+      const user = req.body;
+      // console.log(user);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+  })
+    /* ------Update----User---------- */
+    // get All Commit
+    app.get("/users", async (req, res) => {
+      const query = {};
+      const users = await usersCollection.find(query).toArray();
+      res.send(users);
+    });
+    // check seller verify or not:
+    app.put("/users/verify/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id:ObjectId(id) };
+      const options = { upsert: true };
+      const updatedDoc = {
+        $set: {
+          role: "verify",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        filter,
+        updatedDoc,
+        options
+      );
+      res.send(result);
+    });
 
+  /*   app.get("/users/verify/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isVerified: user?.role === "verify" });
+    }); */
+
+    /* --------Delete------------- */
+    app.delete("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
+    /* -----Add Product-------- */
+    app.post("/products", async (req, res) => {
+      const product = req.body;
+      const result = await productsCollection.insertOne(product);
+      res.send(result);
+    });
+    /* ------Get Product---- */
+    app.get("/products", async (req, res) => {
+      const query = {};
+      const products = await productsCollection.find(query).toArray();
+      res.send(products);
+    });
+/* -------Delete Product------- */
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await productsCollection.deleteOne(filter);
+      res.send(result);
+    });
+  } catch (error) {
+    console.log(error);
+    res.send({
+      success: false,
+      error: error.message,
+    });
+  } finally {
+  }
+}
+run().catch((err) => console.error(err));
 
 app.get("/", async (req, res) => {
-  res.send("e-commerce server is running");
+  res.send("e-commerce re-selling server is running");
 });
 
-app.listen(port, () => console.log(`E-commerce Server running on ${port}`));
+app.listen(port, () => {
+  client.connect((err) => {
+    if (err) {
+      console.log(err);
+    } else {
+      console.log("Connected to MongoDB");
+    }
+  });
+  console.log(`e-commerce re-selling server is running on ${port}`);
+});
+
+/***
+ * API Naming Convention
+ * app.get('/bookings')
+ * app.get('/bookings/:id')
+ * app.post('/bookings')
+ * app.patch('/bookings/:id')
+ * app.delete('/bookings/:id')
+ */
