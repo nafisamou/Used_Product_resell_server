@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 // console.log(stripe);
-// const jwt = require("jsonwebtoken");
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -22,7 +22,7 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-/* // Jwt Token
+ // Jwt Token
  function verifyJWT(req, res, next) {
   console.log("token inside verifyJWT", req.headers.authorization);
   const authHeader = req.headers.authorization;
@@ -38,7 +38,7 @@ const client = new MongoClient(uri, {
     req.decoded = decoded;
     next();
   });
-}  */
+}  
 
 async function run() {
   try {
@@ -61,7 +61,7 @@ async function run() {
 
     // NOTE: make sure you use verifyAdmin after verifyJWT
     const verifyAdmin = async (req, res, next) => {
-      const decodedEmail = req.decoded.email;
+      // const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
       if (user?.role !== "admin") {
@@ -106,13 +106,13 @@ async function run() {
     // Get Bookings Data from database on table:
     app.get("/bookings", async (req, res) => {
       const email = req.query.email;
-      /*  const decodedEmail = req.decoded.email;
+       /* const decodedEmail = req.decoded.email;
 
       if (email !== decodedEmail) {
         return res.status(403).send({ message: "forbidden access" });
       }  */
       // console.log(email)
-      // console.log('token',req.headers.authorization)
+      console.log('token',req.headers.authorization)
       const query = { email: email };
       const bookings = await bookingsCollection.find(query).toArray();
       res.send(bookings);
@@ -127,7 +127,7 @@ async function run() {
     });
 
     //------------ 1st check jwt token was correctly work or not-----------
-    /* app.get("/jwt", async (req, res) => {
+     app.get("/jwt", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const user = await usersCollection.findOne(query);
@@ -139,7 +139,7 @@ async function run() {
         return res.send({ token: token });
       }
       res.status(403).send({ token: "" });
-    });  */
+    });  
 
     // -------------USER------------------
 
@@ -299,6 +299,20 @@ async function run() {
       );
       res.send(result);
     });
+// -------Seller & Buyer--------------
+
+    app.get("/users/seller", async (req, res) => {
+      const query = { role: "seller" };
+      const sellers = await usersCollection.find(query).toArray();
+      res.send(sellers);
+      });
+    app.get("/users/buyer", async (req, res) => {
+      const query = { role: "buyer" };
+      const buyers = await usersCollection.find(query).toArray();
+      res.send(buyers);
+      });
+
+
   } catch (error) {
     console.log(error);
     res.send({
