@@ -22,9 +22,9 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
-// Jwt Token
-/* function verifyJWT(req, res, next) {
-  // console.log("token inside verifyJWT", req.headers.authorization);
+/* // Jwt Token
+ function verifyJWT(req, res, next) {
+  console.log("token inside verifyJWT", req.headers.authorization);
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).send("unauthorized access");
@@ -38,8 +38,8 @@ const client = new MongoClient(uri, {
     req.decoded = decoded;
     next();
   });
-} */
-
+} 
+ */
 async function run() {
   try {
     const productsCollection = client
@@ -58,6 +58,21 @@ async function run() {
     const paymentsCollection = client
       .db("resellProduct")
       .collection("payments");
+
+       // 1st check jwt token was correctly work or not
+   /*  app.get("/jwt", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user) {
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+          expiresIn: "50d",
+        });
+        return res.send({ token: token });
+      }
+      res.status(403).send({ token: "" });
+    }); */
+
 
     // NOTE: make sure you use verifyAdmin after verifyJWT
     const verifyAdmin = async (req, res, next) => {
@@ -106,12 +121,12 @@ async function run() {
     // Get Bookings Data from database on table:
     app.get("/bookings", async (req, res) => {
       const email = req.query.email;
-      // const decodedEmail = req.decoded.email;
+     /*  const decodedEmail = req.decoded.email;
 
-      // if (email !== decodedEmail) {
-      //   return res.status(403).send({ message: "forbidden access" });
-      // }
-      // console.log(email)
+      if (email !== decodedEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      console.log(email) */
 
       const query = { email: email };
       const bookings = await bookingsCollection.find(query).toArray();
@@ -158,7 +173,7 @@ async function run() {
       res.send(result);
     });
     //---------- check admin-------
-    app.put("/users/admin/:id", async (req, res) => {
+    app.put("/users/admin/:id",  async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
@@ -190,7 +205,7 @@ async function run() {
 
     /* --------Delete------------- */
     // ----delete user----
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id",async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await usersCollection.deleteOne(query);
@@ -209,16 +224,7 @@ async function run() {
       // res.send(products)
     });
 
-    //  -----Categories-Option---------
-
-    app.get("/categoriesOptions", async (req, res) => {
-      const query = {};
-      const result = await categoriesCollection
-        .find(query)
-        .project({ category_id: 1, brand: 1 })
-        .toArray();
-      res.send(result);
-    });
+   
 
     app.get("/products", async (req, res) => {
       const query = {};
@@ -230,8 +236,9 @@ async function run() {
     app.delete("/products/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
-      const result = await newProductsCollection.deleteOne(filter);
-      res.send(result);
+      const results = await newProductsCollection.deleteOne(filter);
+      const result = await productsCollection.deleteOne(filter);
+      res.send({result,results});
     });
 
     // -------Payment--------
