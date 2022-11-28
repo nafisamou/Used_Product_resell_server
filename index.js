@@ -51,38 +51,35 @@ async function run() {
     const bookingsCollection = client
       .db("resellProduct")
       .collection("bookings");
-    const usersCollection = client
+    const usersCollection = client.db("resellProduct").collection("users");
+    const newProductsCollection = client
       .db("resellProduct")
-      .collection("users");
-    // const newProductsCollection = client
-    //   .db("resellProduct")
-    //   .collection("newProducts");
+      .collection("newProducts");
     const paymentsCollection = client
       .db("resellProduct")
       .collection("payments");
 
+    // NOTE: make sure you use verifyAdmin after verifyJWT
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+    const verifySeller = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "seller") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
 
- // NOTE: make sure you use verifyAdmin after verifyJWT
- const verifyAdmin = async (req, res, next) => {
-  const decodedEmail = req.decoded.email;
-  const query = { email: decodedEmail };
-  const user = await usersCollection.findOne(query);
-  if (user?.role !== "admin") {
-    return res.status(403).send({ message: "forbidden access" });
-  }
-  next();
-};
- const verifySeller = async (req, res, next) => {
-  const decodedEmail = req.decoded.email;
-  const query = { email: decodedEmail };
-  const user = await usersCollection.findOne(query);
-  if (user?.role !== "seller") {
-    return res.status(403).send({ message: "forbidden access" });
-  }
-  next();
-};
-
-// ------------------------CATEGORIES----------------------
+    // ------------------------CATEGORIES----------------------
     // get all categories API start
     app.get("/categories", async (req, res) => {
       const query = {};
@@ -98,7 +95,7 @@ async function run() {
       const result = await productsCollection.find(query).toArray();
       res.send(result);
     });
-// ---------------------------BOOKINGS------------------------
+    // ---------------------------BOOKINGS------------------------
     // Bookings Create on database:
     app.post("/bookings", async (req, res) => {
       const bookings = req.body;
@@ -121,15 +118,21 @@ async function run() {
       res.send(bookings);
     });
 
-
-// -------------USER------------------
+    // Delete
+    app.delete("/bookings/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await bookingsCollection.deleteOne(filter);
+      res.send(result);
+    });
+    // -------------USER------------------
     // as a buyer or as a seller sign up create:
-    app.post('/users', async(req , res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       // console.log(user);
       const result = await usersCollection.insertOne(user);
       res.send(result);
-  })
+    });
     /* ------Update----User---------- */
     // get All User
     app.get("/users", async (req, res) => {
@@ -140,11 +143,11 @@ async function run() {
     // check seller verify or not:
     app.put("/users/verify/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = { _id:ObjectId(id) };
+      const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
       const updatedDoc = {
         $set: {
-          role: "verify",
+          verification: "verify",
         },
       };
       const result = await usersCollection.updateOne(
@@ -157,12 +160,11 @@ async function run() {
     //---------- check admin-------
     app.put("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = { _id:ObjectId(id) };
+      const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
       const updatedDoc = {
         $set: {
-       
-          role: "admin"
+          role: "admin",
         },
       };
       const result = await usersCollection.updateOne(
@@ -172,19 +174,19 @@ async function run() {
       );
       res.send(result);
     });
-
+    /*  */
     app.get("/users/seller/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ isSeller: user?.role === "seller" });
-    }); 
+    });
     app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
-      res.send({ isAdmin: user?.role==='admin'});
-    }); 
+      res.send({ isAdmin: user?.role === "admin" });
+    });
 
     /* --------Delete------------- */
     // ----delete user----
@@ -195,99 +197,100 @@ async function run() {
       res.send(result);
     });
 
-// ------------------PRODUCT-----------------
+    // ------------------PRODUCT-----------------
     /* -----Add Product-------- */
     app.post("/products", async (req, res) => {
       const newProduct = req.body;
-      const products = await productsCollection.insertOne(newProduct);
-      const category = await categoriesCollection.insertOne(newProduct);
-      res.send({products,category});
+      const products = await newProductsCollection.insertOne(newProduct);
+      const product = await productsCollection.insertOne(newProduct);
+      // const category = await categoriesCollection.insertOne(newProduct);
+      res.send({ products,product});
+      // res.send(products)
+      // res.send(products)
     });
 
-  //  -----Categories-Option---------
-  
-  app.get("/categoriesOptions", async (req, res) => {
-    const query = {};
-    const result = await categoriesCollection
-      .find(query)
-      .project({ category_id: 1, brand:1 })
-      .toArray();
-    res.send(result);
-  });
-   
-    app.get("/products", async (req, res) => {
+    //  -----Categories-Option---------
+
+    app.get("/categoriesOptions", async (req, res) => {
       const query = {};
-      const newProducts = await productsCollection.find(query).toArray();
-      // const category = await categoriesCollection.find(query).toArray();
-      res.send(newProducts);
-    });
-/* -------Delete Product------- */
-    app.delete("/products/:id", async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: ObjectId(id) };
-      const result = await productsCollection.deleteOne(filter);
+      const result = await categoriesCollection
+        .find(query)
+        .project({ category_id: 1, brand: 1 })
+        .toArray();
       res.send(result);
     });
 
- // -------Payment--------
- app.get("/bookings/:id", async (req, res) => {
-  const id = req.params.id;
-  const query = { _id: ObjectId(id) };
-  const booking = await bookingsCollection.findOne(query);
-  res.send(booking);
-});
+    app.get("/products", async (req, res) => {
+      const query = {};
+      const newProducts = await newProductsCollection.find(query).toArray();
+      // const category = await categoriesCollection.find(query).toArray();
+      res.send(newProducts);
+    });
+    /* -------Delete Product------- */
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await newProductsCollection.deleteOne(filter);
+      res.send(result);
+    });
 
-// ------Payment-gateway------
-app.post("/create-payment-intent", async (req, res) => {
-  const booking = req.body;
-  const price = booking.price;
-  const amount = price * 100;
+    // -------Payment--------
+    app.get("/bookings/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const booking = await bookingsCollection.findOne(query);
+      res.send(booking);
+    });
 
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amount,
-    currency: "usd",
-    payment_method_types: ["card"],
-  });
+    // ------Payment-gateway------
+    app.post("/create-payment-intent", async (req, res) => {
+      const booking = req.body;
+      const price = booking.price;
+      const amount = price * 100;
 
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
-});
-//------------- Payment--------------
-app.post("/payments", async (req, res) => {
-  const payment = req.body;
-  const result = await paymentsCollection.insertOne(payment);
-  const id = payment.bookingId;
-  const filter = { _id: ObjectId(id) };
-  const updatedDoc = {
-    $set: {
-      paid: true,
-      transactionId: payment.transactionId,
-    },
-  };
-  const updatedResult = await bookingsCollection.updateOne(
-    filter,
-    updatedDoc
-  );
-  const updatedResults = await productsCollection.updateOne(
-    filter,
-    updatedDoc
-  );
-  res.send({result,updatedResult,updatedResults});
-});
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
 
-
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    //------------- Payment--------------
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const result = await paymentsCollection.insertOne(payment);
+      const id = payment.bookingId;
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId,
+        },
+      };
+      const updatedResult = await bookingsCollection.updateOne(
+        filter,
+        updatedDoc
+      );
+      const updatedResults = await newProductsCollection.updateOne(
+        filter,
+        updatedDoc
+      );
+      const updatedResulted = await productsCollection.updateOne(
+        filter,
+        updatedDoc
+      );
+      res.send( result);
+    });
   } catch (error) {
     console.log(error);
     res.send({
       success: false,
       error: error.message,
     });
-
-
-
-    
   } finally {
   }
 }
