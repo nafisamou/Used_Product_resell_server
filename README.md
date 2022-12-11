@@ -1,7 +1,7 @@
 # Used Product Server-side Repository:
 
 # Live Link
-* Hosted in Firebase ->[Resell Product](https://cloud-kitchen-9bfe0.web.app/)
+* Hosted in Firebase ->[Resell Product](https://used-products-resale-870c2.web.app/)
 
 # Other Resources -->
 * express.json
